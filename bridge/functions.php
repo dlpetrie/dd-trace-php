@@ -75,6 +75,11 @@ function dd_wrap_autoloader()
             }
         }
 
+        $composerInitClassPrefix = 'ComposerAutoloaderInit';
+        if (substr($loaderClass, 0, strlen($composerInitClassPrefix)) === 'ComposerAutoloaderInit') {
+            // We  wait for the real composer autoloader
+            return $originalAutoloaderRegistered;
+        }
 
         // Why unregistering spl_autoload_register?
         // In some cases (e.g. Symfony) this 'spl_autoload_register' function is called within a private scope and at
@@ -85,7 +90,12 @@ function dd_wrap_autoloader()
             dd_untrace('spl_autoload_register');
         }
 
-        if (!$dd_autoload_called) {
+        // If when we detect the composer class loader DDTrace\Tracer is not there, it means that the user did not
+        // declare dd-trace as a dependency. On the other hand, if we detect the class,then we want to  use the version
+        // that the user provided.
+        if (!$dd_autoload_called
+                && ($loaderClass !== 'Composer\Autoload\ClassLoader' || !class_exists('\DDTrace\Tracer'))
+        ) {
             $dd_autoload_called = true;
             require_once __DIR__ . '/dd_autoloader.php';
             spl_autoload_register(['\DDTrace\Bridge\Autoloader', 'load']);
